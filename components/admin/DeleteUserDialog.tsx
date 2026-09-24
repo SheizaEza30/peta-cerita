@@ -28,7 +28,6 @@ type DeleteUserDialogProps = {
 export function DeleteUserDialog({
   userId,
   username,
-  userName,
   open,
   onClose,
 }: DeleteUserDialogProps) {
