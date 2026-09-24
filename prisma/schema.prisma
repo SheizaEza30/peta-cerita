@@ -127,18 +127,19 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  accounts           Account[]
-  sessions           Session[]
-  stories            Story[]            @relation("StoryAuthor")
-  contributions      Contribution[]     @relation("ContributionAuthor")
-  reviewedContribs   Contribution[]     @relation("ContributionReviewer")
-  savedStories       SavedStory[]
-  readingHistories   ReadingHistory[]
-  pointTransactions  PointTransaction[]
-  userAchievements   UserAchievement[]
-  reports            Report[]           @relation("ReportAuthor")
-  reviewedReports    Report[]           @relation("ReportReviewer")
-  notifications      Notification[]
+  accounts             Account[]
+  sessions             Session[]
+  stories              Story[]               @relation("StoryAuthor")
+  contributions        Contribution[]        @relation("ContributionAuthor")
+  reviewedContribs     Contribution[]        @relation("ContributionReviewer")
+  savedStories         SavedStory[]
+  readingHistories     ReadingHistory[]
+  pointTransactions    PointTransaction[]
+  userAchievements     UserAchievement[]
+  reports              Report[]              @relation("ReportAuthor")
+  reviewedReports      Report[]              @relation("ReportReviewer")
+  notifications        Notification[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@index([role])
   @@index([points])
@@ -150,12 +151,12 @@ model User {
 // ============================================
 
 model Category {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  slug      String   @unique
-  icon      String?
-  color     String?
-  description String? @db.Text
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  icon        String?
+  color       String?
+  description String?  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -170,45 +171,45 @@ model Category {
 // ============================================
 
 model Story {
-  id          String      @id @default(cuid())
-  title       String
-  slug        String      @unique
-  synopsis    String      @db.Text
-  content     String      @db.Text
-  categoryId  String
+  id         String      @id @default(cuid())
+  title      String
+  slug       String      @unique
+  synopsis   String      @db.Text
+  content    String      @db.Text
+  categoryId String
 
   // Location
-  latitude    Float
-  longitude   Float
-  address     String?
-  city        String?
-  province    String?
-  country     String      @default("Indonesia")
+  latitude  Float
+  longitude Float
+  address   String?
+  city      String?
+  province  String?
+  country   String      @default("Indonesia")
 
   // Metadata
-  period      String?
-  source      String?     @db.Text
-  heroImage   String?
+  period    String?
+  source    String?     @db.Text
+  heroImage String?
 
   // Status
-  status      StoryStatus @default(PENDING)
-  viewCount   Int         @default(0)
+  status    StoryStatus @default(PENDING)
+  viewCount Int         @default(0)
 
   // Relations
-  authorId    String
-  approvedBy  String?
-  approvedAt  DateTime?
+  authorId   String
+  approvedBy String?
+  approvedAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  author            User               @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  category          Category           @relation(fields: [categoryId], references: [id])
-  images            StoryImage[]
-  contributions     Contribution[]
-  savedBy           SavedStory[]
-  readingHistories  ReadingHistory[]
-  reports           Report[]
+  author           User              @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  category         Category          @relation(fields: [categoryId], references: [id])
+  images           StoryImage[]
+  contributions    Contribution[]
+  savedBy          SavedStory[]
+  readingHistories ReadingHistory[]
+  reports          Report[]
 
   @@index([categoryId])
   @@index([status])
@@ -251,14 +252,14 @@ model Contribution {
   submissionData   Json
 
   // Review
-  rejectionReason  String?   @db.Text
-  reviewedBy       String?
-  reviewedAt       DateTime?
+  rejectionReason String?   @db.Text
+  reviewedBy      String?
+  reviewedAt      DateTime?
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user     User  @relation("ContributionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  user     User   @relation("ContributionAuthor", fields: [userId], references: [id], onDelete: Cascade)
   story    Story? @relation(fields: [storyId], references: [id], onDelete: SetNull)
   reviewer User?  @relation("ContributionReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
 
@@ -291,12 +292,12 @@ model SavedStory {
 // ============================================
 
 model ReadingHistory {
-  id          String   @id @default(cuid())
-  userId      String
-  storyId     String
-  progress    Int      @default(0) // 0-100
-  completed   Boolean  @default(false)
-  lastReadAt  DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  storyId    String
+  progress   Int      @default(0)
+  completed  Boolean  @default(false)
+  lastReadAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
@@ -337,7 +338,7 @@ model Achievement {
   name        String   @unique
   description String   @db.Text
   icon        String?
-  requirement String   @db.Text // JSON string: {"type": "story_count", "value": 5}
+  requirement String   @db.Text
   points      Int      @default(0)
 
   createdAt DateTime @default(now())
@@ -371,9 +372,9 @@ model Report {
   description String?      @db.Text
   status      ReportStatus @default(OPEN)
 
-  reviewedBy  String?
-  reviewedAt  DateTime?
-  reviewNote  String?      @db.Text
+  reviewedBy String?
+  reviewedAt DateTime?
+  reviewNote String?      @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -393,14 +394,14 @@ model Report {
 // ============================================
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  message   String           @db.Text
-  link      String?
-  read      Boolean          @default(false)
-  metadata  Json?
+  id       String           @id @default(cuid())
+  userId   String
+  type     NotificationType
+  title    String
+  message  String           @db.Text
+  link     String?
+  read     Boolean          @default(false)
+  metadata Json?
 
   createdAt DateTime @default(now())
 
@@ -409,4 +410,23 @@ model Notification {
   @@index([userId])
   @@index([userId, read])
   @@index([createdAt])
+}
+
+// ============================================
+// PASSWORD RESET TOKEN
+// ============================================
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }

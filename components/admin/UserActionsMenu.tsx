@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical, Trash2, UserCog } from "lucide-react";
+import { MoreVertical, Trash2, UserCog, KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChangeRoleDialog } from "./ChangeRoleDialog";
 import { DeleteUserDialog } from "./DeleteUserDialog";
+import { ResetPasswordDialog } from "./ResetPasswordDialog";
 
 type UserActionsMenuProps = {
   userId: string;
@@ -32,6 +33,7 @@ export function UserActionsMenu({
 }: UserActionsMenuProps) {
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   return (
     <>
@@ -53,28 +55,30 @@ export function UserActionsMenu({
           <DropdownMenuSeparator />
 
           <DropdownMenuItem
+            onClick={() => setResetDialogOpen(true)}
+            className="cursor-pointer"
+          >
+            <KeyRound className="size-4 mr-2" />
+            Reset Password
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
             onClick={() => setRoleDialogOpen(true)}
             disabled={isSelf}
             className="cursor-pointer"
-            title={
-              isSelf
-                ? "Tidak dapat mengubah role sendiri"
-                : "Ubah role user"
-            }
+            title={isSelf ? "Tidak dapat mengubah role sendiri" : "Ubah role user"}
           >
             <UserCog className="size-4 mr-2" />
             Ubah Role
           </DropdownMenuItem>
 
+          <DropdownMenuSeparator />
+
           <DropdownMenuItem
             onClick={() => setDeleteDialogOpen(true)}
             disabled={isSelf}
             className="cursor-pointer text-destructive focus:text-destructive"
-            title={
-              isSelf
-                ? "Tidak dapat menghapus akun sendiri"
-                : "Hapus user"
-            }
+            title={isSelf ? "Tidak dapat menghapus akun sendiri" : "Hapus user"}
           >
             <Trash2 className="size-4 mr-2" />
             Hapus User
@@ -91,7 +95,14 @@ export function UserActionsMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Dialogs */}
+      <ResetPasswordDialog
+        userId={userId}
+        username={username}
+        userName={userName}
+        open={resetDialogOpen}
+        onClose={() => setResetDialogOpen(false)}
+      />
+
       <ChangeRoleDialog
         userId={userId}
         username={username}
@@ -104,7 +115,6 @@ export function UserActionsMenu({
       <DeleteUserDialog
         userId={userId}
         username={username}
-        userName={userName}
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       />

@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label";
 type DeleteUserDialogProps = {
   userId: string;
   username: string;
-  userName: string | null;
   open: boolean;
   onClose: () => void;
 };
