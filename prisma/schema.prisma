@@ -1,0 +1,412 @@
+// ============================================
+// PETA CERITA — Database Schema
+// ============================================
+// PostgreSQL + Prisma ORM
+// Semua model, enum, relasi, dan index
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum StoryStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContributionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PointType {
+  SUBMIT
+  APPROVED
+  ACHIEVEMENT
+  BONUS
+  ADJUSTMENT
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum NotificationType {
+  CONTRIBUTION_SUBMITTED
+  CONTRIBUTION_APPROVED
+  CONTRIBUTION_REJECTED
+  ACHIEVEMENT_UNLOCKED
+  SYSTEM
+}
+
+// ============================================
+// AUTH.JS MODELS (REQUIRED FOR NEXTAUTH)
+// ============================================
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// USER
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  username      String    @unique
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String
+  avatar        String?
+  bio           String?   @db.Text
+  role          Role      @default(USER)
+  points        Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  accounts           Account[]
+  sessions           Session[]
+  stories            Story[]            @relation("StoryAuthor")
+  contributions      Contribution[]     @relation("ContributionAuthor")
+  reviewedContribs   Contribution[]     @relation("ContributionReviewer")
+  savedStories       SavedStory[]
+  readingHistories   ReadingHistory[]
+  pointTransactions  PointTransaction[]
+  userAchievements   UserAchievement[]
+  reports            Report[]           @relation("ReportAuthor")
+  reviewedReports    Report[]           @relation("ReportReviewer")
+  notifications      Notification[]
+
+  @@index([role])
+  @@index([points])
+  @@index([createdAt])
+}
+
+// ============================================
+// CATEGORY
+// ============================================
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  icon      String?
+  color     String?
+  description String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stories Story[]
+
+  @@index([slug])
+}
+
+// ============================================
+// STORY
+// ============================================
+
+model Story {
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  synopsis    String      @db.Text
+  content     String      @db.Text
+  categoryId  String
+
+  // Location
+  latitude    Float
+  longitude   Float
+  address     String?
+  city        String?
+  province    String?
+  country     String      @default("Indonesia")
+
+  // Metadata
+  period      String?
+  source      String?     @db.Text
+  heroImage   String?
+
+  // Status
+  status      StoryStatus @default(PENDING)
+  viewCount   Int         @default(0)
+
+  // Relations
+  authorId    String
+  approvedBy  String?
+  approvedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  author            User               @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  category          Category           @relation(fields: [categoryId], references: [id])
+  images            StoryImage[]
+  contributions     Contribution[]
+  savedBy           SavedStory[]
+  readingHistories  ReadingHistory[]
+  reports           Report[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([latitude, longitude])
+  @@index([city])
+  @@index([province])
+}
+
+// ============================================
+// STORY IMAGE
+// ============================================
+
+model StoryImage {
+  id        String   @id @default(cuid())
+  storyId   String
+  url       String
+  caption   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([storyId])
+  @@index([order])
+}
+
+// ============================================
+// CONTRIBUTION
+// ============================================
+
+model Contribution {
+  id               String             @id @default(cuid())
+  userId           String
+  storyId          String?
+  status           ContributionStatus @default(DRAFT)
+
+  // Snapshot data submission (sebelum jadi Story)
+  submissionData   Json
+
+  // Review
+  rejectionReason  String?   @db.Text
+  reviewedBy       String?
+  reviewedAt       DateTime?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user     User  @relation("ContributionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  story    Story? @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  reviewer User?  @relation("ContributionReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([storyId])
+  @@index([createdAt])
+}
+
+// ============================================
+// SAVED STORY
+// ============================================
+
+model SavedStory {
+  id        String   @id @default(cuid())
+  userId    String
+  storyId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId])
+  @@index([userId])
+  @@index([storyId])
+}
+
+// ============================================
+// READING HISTORY
+// ============================================
+
+model ReadingHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  storyId     String
+  progress    Int      @default(0) // 0-100
+  completed   Boolean  @default(false)
+  lastReadAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId])
+  @@index([userId])
+  @@index([storyId])
+  @@index([lastReadAt])
+}
+
+// ============================================
+// POINT TRANSACTION
+// ============================================
+
+model PointTransaction {
+  id          String    @id @default(cuid())
+  userId      String
+  points      Int
+  type        PointType
+  description String
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ============================================
+// ACHIEVEMENT
+// ============================================
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @db.Text
+  icon        String?
+  requirement String   @db.Text // JSON string: {"type": "story_count", "value": 5}
+  points      Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+}
+
+// ============================================
+// REPORT
+// ============================================
+
+model Report {
+  id          String       @id @default(cuid())
+  userId      String
+  storyId     String
+  reason      String
+  description String?      @db.Text
+  status      ReportStatus @default(OPEN)
+
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String?      @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User   @relation("ReportAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  story    Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  reviewer User?  @relation("ReportReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([storyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
+// NOTIFICATION
+// ============================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  link      String?
+  read      Boolean          @default(false)
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
