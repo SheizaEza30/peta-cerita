@@ -10,22 +10,30 @@ import {
   Flag,
   Sparkles,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DeleteStoryDialog } from "./DeleteStoryDialog";
 
 type StoryActionsProps = {
   storyId: string;
   storySlug: string;
+  storyTitle: string;
   initialSaved?: boolean;
+  isOwner?: boolean;
+  isAdmin?: boolean;
   onOpenStorytelling?: () => void;
 };
 
 export function StoryActions({
   storyId,
   storySlug,
+  storyTitle,
   initialSaved = false,
+  isOwner = false,
+  isAdmin = false,
   onOpenStorytelling,
 }: StoryActionsProps) {
   const router = useRouter();
@@ -34,8 +42,11 @@ export function StoryActions({
   const [saved, setSaved] = useState(initialSaved);
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // Cek status saved dari API saat mount
+  const canDelete = isOwner || isAdmin;
+
+  // Cek status saved dari API
   useEffect(() => {
     if (!session?.user) {
       setChecking(false);
@@ -46,21 +57,17 @@ export function StoryActions({
 
     async function checkSaved() {
       try {
-        // Cek via GET saved-stories?storyId=... atau cek di list
         const res = await fetch(`/api/saved-stories?storyId=${storyId}`, {
           cache: "no-store",
         });
         if (res.ok) {
           const json = await res.json();
-          const isSaved = json?.data?.some?.(
-            (s: { id: string }) => s.id === storyId
-          );
-          if (!cancelled && typeof isSaved === "boolean") {
-            setSaved(isSaved);
-          }
+          const isSaved =
+            Array.isArray(json?.data) && json.data.length > 0;
+          if (!cancelled) setSaved(isSaved);
         }
       } catch {
-        // Silent fail — pakai initialSaved
+        // Silent fail
       } finally {
         if (!cancelled) setChecking(false);
       }
@@ -74,7 +81,6 @@ export function StoryActions({
   }, [storyId, session?.user]);
 
   async function handleSave() {
-    // Belum login → redirect
     if (!session?.user) {
       toast.error("Login dulu untuk menyimpan cerita");
       router.push(`/login?callbackUrl=/story/${storySlug}`);
@@ -82,8 +88,6 @@ export function StoryActions({
     }
 
     setSaving(true);
-
-    // Optimistic update
     const prevSaved = saved;
     setSaved(!prevSaved);
 
@@ -95,29 +99,20 @@ export function StoryActions({
       });
 
       if (!res.ok) {
-        // Rollback
         setSaved(prevSaved);
         const json = await res.json().catch(() => null);
         toast.error(
           json?.error?.message ||
-            (prevSaved
-              ? "Gagal menghapus dari simpanan"
-              : "Gagal menyimpan cerita")
+            (prevSaved ? "Gagal menghapus" : "Gagal menyimpan")
         );
         return;
       }
 
-      // Refresh saved page cache
+      toast.success(prevSaved ? "Dihapus dari simpanan" : "Disimpan");
       router.refresh();
-
-      toast.success(
-        prevSaved
-          ? "Dihapus dari simpanan"
-          : "Disimpan ke daftar baca"
-      );
     } catch (err) {
       console.error("[SAVE_ERROR]", err);
-      setSaved(prevSaved); // rollback
+      setSaved(prevSaved);
       toast.error("Terjadi kesalahan. Coba lagi.");
     } finally {
       setSaving(false);
@@ -129,10 +124,7 @@ export function StoryActions({
 
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        await navigator.share({
-          title: document.title,
-          url,
-        });
+        await navigator.share({ title: storyTitle, url });
       } catch {
         // User cancelled
       }
@@ -156,49 +148,72 @@ export function StoryActions({
   }
 
   return (
-    <div className="mt-6 flex flex-wrap gap-2">
-      {onOpenStorytelling && (
-        <Button
-          onClick={onOpenStorytelling}
-          className="flex-1 bg-gradient-to-r from-primary to-primary/80"
-        >
-          <Sparkles className="size-4 mr-2" />
-          Mode Dongeng
-        </Button>
-      )}
-
-      <Button
-        onClick={handleSave}
-        disabled={saving || checking}
-        variant={saved ? "default" : "outline"}
-      >
-        {saving ? (
-          <>
-            <Loader2 className="size-4 mr-2 animate-spin" />
-            {saved ? "Menyimpan..." : "Menghapus..."}
-          </>
-        ) : saved ? (
-          <>
-            <BookmarkCheck className="size-4 mr-2" />
-            Tersimpan
-          </>
-        ) : (
-          <>
-            <Bookmark className="size-4 mr-2" />
-            Simpan
-          </>
+    <>
+      <div className="mt-6 flex flex-wrap gap-2">
+        {onOpenStorytelling && (
+          <Button
+            onClick={onOpenStorytelling}
+            className="flex-1 bg-gradient-to-r from-primary to-primary/80"
+          >
+            <Sparkles className="size-4 mr-2" />
+            Mode Dongeng
+          </Button>
         )}
-      </Button>
 
-      <Button onClick={handleShare} variant="outline">
-        <Share2 className="size-4 mr-2" />
-        Bagikan
-      </Button>
+        <Button
+          onClick={handleSave}
+          disabled={saving || checking}
+          variant={saved ? "default" : "outline"}
+        >
+          {saving ? (
+            <>
+              <Loader2 className="size-4 mr-2 animate-spin" />
+              {saved ? "Menyimpan..." : "Menghapus..."}
+            </>
+          ) : saved ? (
+            <>
+              <BookmarkCheck className="size-4 mr-2" />
+              Tersimpan
+            </>
+          ) : (
+            <>
+              <Bookmark className="size-4 mr-2" />
+              Simpan
+            </>
+          )}
+        </Button>
 
-      <Button onClick={handleReport} variant="outline">
-        <Flag className="size-4 mr-2" />
-        Laporkan
-      </Button>
-    </div>
+        <Button onClick={handleShare} variant="outline">
+          <Share2 className="size-4 mr-2" />
+          Bagikan
+        </Button>
+
+        {!canDelete && (
+          <Button onClick={handleReport} variant="outline">
+            <Flag className="size-4 mr-2" />
+            Laporkan
+          </Button>
+        )}
+
+        {canDelete && (
+          <Button
+            onClick={() => setDeleteOpen(true)}
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="size-4 mr-2" />
+            Hapus
+          </Button>
+        )}
+      </div>
+
+      <DeleteStoryDialog
+        storyId={storyId}
+        storyTitle={storyTitle}
+        storySlug={storySlug}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+      />
+    </>
   );
 }

@@ -44,7 +44,7 @@ export default async function AdminStoriesPage() {
 
   return (
     <div className="container py-6">
-      <div className="mb-6">
+      <div className="">
         <h1 className="font-serif text-2xl font-bold md:text-3xl">
           Kelola Cerita
         </h1>

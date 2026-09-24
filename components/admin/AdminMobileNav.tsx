@@ -1,17 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Menu,
   LayoutDashboard,
   FileText,
   Flag,
   Users,
   FolderTree,
-  Menu,
   BookOpen,
 } from "lucide-react";
 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -23,20 +32,30 @@ const items = [
   { href: "/admin/categories", label: "Kategori", icon: FolderTree },
 ];
 
-export function AdminSidebar() {
+export function AdminMobileNav() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-border bg-muted/20 md:block">
-      <div className="sticky top-14 p-4">
-        <div className="mb-4 flex items-center gap-2 px-2">
-          <Menu className="size-4 text-muted-foreground" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-9 md:hidden"
+          aria-label="Buka menu admin"
+        >
+          <Menu className="size-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72 p-0">
+        <SheetHeader className="border-b border-border p-4">
+          <SheetTitle className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            <Menu className="size-4" />
             Admin Panel
-          </span>
-        </div>
-
-        <nav className="space-y-1">
+          </SheetTitle>
+        </SheetHeader>
+        <nav className="space-y-1 p-4">
           {items.map((item) => {
             const Icon = item.icon;
             const isActive = item.exact
@@ -47,8 +66,9 @@ export function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -60,7 +80,7 @@ export function AdminSidebar() {
             );
           })}
         </nav>
-      </div>
-    </aside>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -15,26 +15,16 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-// ============================================
-// METADATA (SEO)
-// ============================================
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-
   const story = await prisma.story.findUnique({
     where: { slug },
-    select: {
-      title: true,
-      synopsis: true,
-      heroImage: true,
-    },
+    select: { title: true, synopsis: true, heroImage: true },
   });
 
-  if (!story) {
-    return { title: "Cerita tidak ditemukan" };
-  }
+  if (!story) return { title: "Cerita tidak ditemukan" };
 
   return {
     title: story.title,
@@ -54,9 +44,6 @@ export async function generateMetadata({
   };
 }
 
-// ============================================
-// PAGE
-// ============================================
 export default async function StoryDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
@@ -97,7 +84,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  // Cek apakah user sudah save cerita ini
   const session = await auth();
   let initialSaved = false;
 
@@ -114,15 +100,17 @@ export default async function StoryDetailPage({ params }: PageProps) {
     initialSaved = !!savedRecord;
   }
 
+  const isOwner = session?.user?.id === story.author.id;
+  const isAdmin =
+    session?.user?.role === "ADMIN" || session?.user?.role === "MODERATOR";
+
   const readingTime = estimateReadingTime(story.content);
   const location = [story.city, story.province].filter(Boolean).join(", ");
 
   return (
     <article className="relative min-h-[calc(100vh-3.5rem)] bg-background">
       <div className="relative w-full md:grid md:grid-cols-2 md:gap-0">
-        {/* Kolom KIRI — Text */}
         <div className="order-2 px-4 py-6 md:order-1 md:px-10 md:py-10 lg:px-16 lg:py-12">
-          {/* Back button */}
           <Link
             href="/"
             className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground md:mb-6"
@@ -131,7 +119,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
             Kembali ke peta
           </Link>
 
-          {/* Category */}
           {story.category && (
             <Badge
               variant="secondary"
@@ -150,17 +137,14 @@ export default async function StoryDetailPage({ params }: PageProps) {
             </Badge>
           )}
 
-          {/* Title */}
           <h1 className="mb-3 font-serif text-2xl font-bold leading-tight md:text-3xl lg:text-4xl">
             {story.title}
           </h1>
 
-          {/* Synopsis */}
           <p className="mb-5 text-base italic text-muted-foreground md:text-lg">
             {story.synopsis}
           </p>
 
-          {/* Meta row */}
           <div className="mb-5 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
             {location && (
               <span className="flex items-center gap-1">
@@ -182,7 +166,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
 
           <Separator className="mb-5" />
 
-          {/* Content */}
           <div className="prose prose-slate max-w-none dark:prose-invert">
             {story.content.split("\n\n").map((paragraph, i) => (
               <p key={i} className="mb-4 leading-relaxed text-foreground/90">
@@ -191,7 +174,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
             ))}
           </div>
 
-          {/* Source */}
           {story.source && (
             <div className="mt-8 rounded-lg border border-border bg-muted/40 p-4">
               <p className="mb-1 text-xs font-semibold text-muted-foreground">
@@ -201,7 +183,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Author box */}
           <div className="mt-8 flex items-center gap-3 rounded-lg border border-border p-4">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               {story.author.avatar ? (
@@ -228,14 +209,15 @@ export default async function StoryDetailPage({ params }: PageProps) {
             </Button>
           </div>
 
-          {/* Actions — pakai StoryDetailClient */}
           <StoryDetailClient
             storyId={story.id}
             storySlug={story.slug}
-            title={story.title}
+            storyTitle={story.title}
             content={story.content}
             heroImage={story.heroImage}
             initialSaved={initialSaved}
+            isOwner={isOwner}
+            isAdmin={isAdmin}
             category={
               story.category
                 ? { name: story.category.name, color: story.category.color }
@@ -244,7 +226,6 @@ export default async function StoryDetailPage({ params }: PageProps) {
           />
         </div>
 
-        {/* Kolom KANAN — Image (sticky di desktop) */}
         <div className="order-1 md:order-2 md:sticky md:top-14 md:h-[calc(100vh-3.5rem)] md:overflow-hidden">
           {story.heroImage ? (
             <div className="relative h-64 w-full overflow-hidden bg-muted md:h-full">
