@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -11,22 +11,27 @@ import {
   StorySlideUp,
   type SlideUpStory,
 } from "@/components/story/StorySlideUp";
+import { SearchBar } from "@/components/search/SearchBar";
+import { FilterPanel } from "@/components/filter/FilterPanel";
 
 export default function HomePage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const storiesRef = useRef<MapStory[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedStory, setSelectedStory] = useState<SlideUpStory | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const { data: stories = [], isLoading, isError } = useMapStories();
 
-  // Simpan stories ke ref supaya tidak trigger re-render
-  useEffect(() => {
-    storiesRef.current = stories;
-  }, [stories]);
+  // Filter stories by category
+  const filteredStories = useMemo(() => {
+    if (selectedCategories.length === 0) return stories;
+    return stories.filter(
+      (s) => s.category && selectedCategories.includes(s.category.slug)
+    );
+  }, [stories, selectedCategories]);
 
   const handleMarkerClick = useCallback((story: MapStory) => {
     setSelectedStory({
@@ -44,7 +49,17 @@ export default function HomePage() {
     setSheetOpen(true);
   }, []);
 
-  // === INIT MAP (sekali saja, tidak akan re-run) ===
+  const handleToggleCategory = useCallback((slug: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
+    );
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSelectedCategories([]);
+  }, []);
+
+  // Init map
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
 
@@ -98,9 +113,7 @@ export default function HomePage() {
       "bottom-left"
     );
 
-    map.on("load", () => {
-      setIsLoaded(true);
-    });
+    map.on("load", () => setIsLoaded(true));
 
     mapRef.current = map;
 
@@ -110,71 +123,56 @@ export default function HomePage() {
     };
   }, []);
 
-  // === RENDER MARKERS (hanya saat stories/isLoaded berubah) ===
+  // Render markers
   useEffect(() => {
     if (!mapRef.current || !isLoaded) return;
 
     const map = mapRef.current;
 
-    // Bersihkan marker lama
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Buat marker baru
-stories.forEach((story: MapStory) => {
-  const color = story.category?.color ?? DEFAULT_MARKER_COLOR;
-  const initial = story.category?.name?.charAt(0) ?? "•";
+    filteredStories.forEach((story: MapStory) => {
+      const color = story.category?.color ?? DEFAULT_MARKER_COLOR;
+      const initial = story.category?.name?.charAt(0) ?? "•";
 
-  // Buat elemen marker dengan SVG pin
-  const el = document.createElement("div");
-  el.setAttribute("aria-label", story.title);
-  el.setAttribute("role", "button");
-  el.setAttribute("tabindex", "0");
-  el.className = "peta-marker";
-  el.style.setProperty("--marker-color", color);
+      const el = document.createElement("button");
+      el.setAttribute("aria-label", story.title);
+      el.className = "peta-marker";
+      el.style.setProperty("--marker-color", color);
 
-  el.innerHTML = `
-    <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
-      <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.94-8.06-18-18-18z" 
-            fill="${color}" 
-            stroke="white" 
-            stroke-width="2"/>
-      <text x="18" y="24" 
-            text-anchor="middle" 
-            fill="white" 
-            font-size="14" 
-            font-weight="700" 
-            font-family="system-ui, sans-serif">${initial}</text>
-    </svg>
-  `;
+      el.innerHTML = `
+        <svg width="36" height="44" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26c0-9.94-8.06-18-18-18z" 
+                fill="${color}" 
+                stroke="white" 
+                stroke-width="2"/>
+          <text x="18" y="24" 
+                text-anchor="middle" 
+                fill="white" 
+                font-size="14" 
+                font-weight="700" 
+                font-family="system-ui, sans-serif">${initial}</text>
+        </svg>
+      `;
 
-  el.addEventListener("click", (e) => {
-    e.stopPropagation();
-    handleMarkerClick(story);
-    map.flyTo({
-      center: [story.longitude, story.latitude],
-      zoom: Math.max(map.getZoom(), 12),
-      duration: 800,
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleMarkerClick(story);
+        map.flyTo({
+          center: [story.longitude, story.latitude],
+          zoom: Math.max(map.getZoom(), 12),
+          duration: 800,
+        });
+      });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+        .setLngLat([story.longitude, story.latitude])
+        .addTo(map);
+
+      markersRef.current.push(marker);
     });
-  });
-
-  el.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleMarkerClick(story);
-    }
-  });
-
-  const marker = new maplibregl.Marker({
-    element: el,
-    anchor: "bottom",
-  })
-    .setLngLat([story.longitude, story.latitude])
-    .addTo(map);
-
-  markersRef.current.push(marker);
-});
-  }, [stories, isLoaded, handleMarkerClick]);
+  }, [filteredStories, isLoaded, handleMarkerClick]);
 
   return (
     <div
@@ -187,14 +185,31 @@ stories.forEach((story: MapStory) => {
         style={{ width: "100%", height: "100%" }}
       />
 
-      <div className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2">
-        <div className="pointer-events-auto rounded-full border border-border bg-background/95 px-4 py-2 text-xs font-medium shadow-card backdrop-blur">
-          {isLoading && "⏳ Memuat cerita..."}
-          {isError && "⚠️ Gagal memuat cerita"}
-          {!isLoading && !isError && stories.length === 0 && "📍 Belum ada cerita"}
-          {!isLoading && !isError && stories.length > 0 && (
-            <>📍 {stories.length} cerita tersedia — klik marker</>
-          )}
+      {/* Top overlay: Search + Filter */}
+      <div className="pointer-events-none absolute inset-x-0 top-4 z-20 px-4">
+        <div className="pointer-events-auto mx-auto flex max-w-2xl items-center gap-2">
+          <div className="flex-1">
+            <SearchBar />
+          </div>
+          <FilterPanel
+            selectedSlugs={selectedCategories}
+            onToggle={handleToggleCategory}
+            onClear={handleClearFilters}
+          />
+        </div>
+
+        {/* Chip info — di bawah search bar */}
+        <div className="mt-3 flex justify-center">
+          <div className="rounded-full border border-border bg-background/95 px-4 py-2 text-xs font-medium shadow-card backdrop-blur">
+            {isLoading && "⏳ Memuat cerita..."}
+            {isError && "⚠️ Gagal memuat cerita"}
+            {!isLoading && !isError && filteredStories.length === 0 && (
+              <>{selectedCategories.length > 0 ? "🔍 Tidak ada cerita sesuai filter" : "📍 Belum ada cerita"}</>
+            )}
+            {!isLoading && !isError && filteredStories.length > 0 && (
+              <>📍 {filteredStories.length} cerita tersedia — klik marker</>
+            )}
+          </div>
         </div>
       </div>
 
