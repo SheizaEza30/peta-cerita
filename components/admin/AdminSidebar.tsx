@@ -9,6 +9,7 @@ import {
   Users,
   FolderTree,
   Menu,
+  BookOpen,   // ← tambah ini
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/contributions", label: "Kontribusi", icon: FileText },
+  { href: "/admin/stories", label: "Cerita", icon: BookOpen },
   { href: "/admin/reports", label: "Laporan", icon: Flag },
   { href: "/admin/users", label: "Pengguna", icon: Users },
   { href: "/admin/categories", label: "Kategori", icon: FolderTree },

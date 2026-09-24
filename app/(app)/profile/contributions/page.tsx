@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { PlusCircle, FileText, Clock, CheckCircle2, XCircle } from "lucide-react";
+import {
+  PlusCircle,
+  FileText,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
 import { auth } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db/prisma";
@@ -9,6 +15,7 @@ import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ContributionActions } from "@/components/contribution/ContributionActions";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = {
@@ -105,7 +112,6 @@ export default async function ContributionsPage() {
         <ProfileTabs />
       </div>
 
-      {/* Header actions */}
       <div className="mt-6 mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Kontribusi Saya</h2>
         <Button asChild size="sm">
@@ -116,7 +122,6 @@ export default async function ContributionsPage() {
         </Button>
       </div>
 
-      {/* Empty state */}
       {contributions.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -168,7 +173,6 @@ export default async function ContributionsPage() {
                         </p>
                       )}
 
-                      {/* Rejection reason */}
                       {c.status === "REJECTED" && c.rejectionReason && (
                         <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm">
                           <p className="mb-1 font-medium text-red-800">
@@ -179,23 +183,12 @@ export default async function ContributionsPage() {
                       )}
                     </div>
 
-                    <div className="flex shrink-0 flex-col gap-2">
-                      {c.story && (
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/story/${c.story.slug}`}>Lihat</Link>
-                        </Button>
-                      )}
-                      {(c.status === "REJECTED" ||
-                        c.status === "DRAFT") && (
-                        <Button asChild variant="outline" size="sm">
-                          <Link
-                            href={`/contribute/${c.id}/edit`}
-                          >
-                            Edit
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
+                    <ContributionActions
+                      contributionId={c.id}
+                      contributionTitle={data.title ?? "Tanpa Judul"}
+                      status={c.status as "DRAFT" | "PENDING" | "APPROVED" | "REJECTED"}
+                      storySlug={c.story?.slug ?? null}
+                    />
                   </div>
                 </CardContent>
               </Card>
